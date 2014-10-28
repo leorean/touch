@@ -2,11 +2,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.example.touch.MainActivity" >
-
-    <item
-        android:id="@+id/action_settings"
-        android:orderInCategory="100"
-        android:title="@string/action_settings"
-        app:showAsAction="never"/>
+    
+    <group android:id="@+id/bluetooth_group" android:menuCategory="container"><item android:id="@+id/turn_on" android:title="@string/turn_on" android:menuCategory="secondary"></item>
+    <item android:id="@+id/get_visible" android:title="@string/get_visible"></item>
+    <item android:id="@+id/list_devices" android:title="@string/list_devices"></item>
+    <item android:id="@+id/turn_off" android:title="@string/turn_off"></item>
+</group>
 
 </menu>
