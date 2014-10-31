@@ -39,7 +39,6 @@ public class MainActivity extends Activity {
 	public UUID mUUID = UUID.randomUUID();
 	
 	public static String MULTIMETER = "00:1A:7D:16:46:C5";
-	private boolean isConnected = false;
 	
 	private BluetoothDevice device;
 	private InputStream is;
@@ -62,6 +61,18 @@ public class MainActivity extends Activity {
 		{
 			BA = BluetoothAdapter.getDefaultAdapter();
 
+			//TODO : HIER WEITER
+			if (BA != null)
+			{
+				BA.enable();
+				if (BA.isEnabled())
+					Toast.makeText(getApplicationContext(),"Enabled",Toast.LENGTH_LONG).show();
+				else
+					Toast.makeText(getApplicationContext(),"Not turned on :(",Toast.LENGTH_LONG).show();
+			} else
+				Toast.makeText(getApplicationContext(),"FUCK.",Toast.LENGTH_LONG).show();
+			
+			/*
 			BroadcastReceiver btReceiver = new BroadcastReceiver() {
 			    @Override
 			    public void onReceive(Context context, Intent intent) {
@@ -112,7 +123,7 @@ public class MainActivity extends Activity {
 			
 			is = socket.getInputStream();
 			os = socket.getOutputStream();
-			
+			*/
 		}
 		catch (Exception e)
 		{
