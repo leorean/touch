@@ -23,36 +23,52 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-	   // private Button On,Off,Visible,list;
-	   private BluetoothAdapter BA;
-	   private Set<BluetoothDevice>pairedDevices;
-	   private ListView lv;
-	   @Override
-	   protected void onCreate(Bundle savedInstanceState) {
-	      super.onCreate(savedInstanceState);
-	      setContentView(R.layout.activity_main);
-//	      On = (Button)findViewById(R.id.button1);
-//	      Off = (Button)findViewById(R.id.button2);
-//	      Visible = (Button)findViewById(R.id.button3);
-//	      list = (Button)findViewById(R.id.button4);
+	// private Button On,Off,Visible,list;
+	private BluetoothAdapter BA;
+	private Set<BluetoothDevice>pairedDevices;
+	private ListView lv;
+	@Override
+	protected void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		//	      On = (Button)findViewById(R.id.button1);
+		//	      Off = (Button)findViewById(R.id.button2);
+		//	      Visible = (Button)findViewById(R.id.button3);
+		//	      list = (Button)findViewById(R.id.button4);
+		lv = (ListView)findViewById(R.id.listView1);
+		try
+		{
+			BA = BluetoothAdapter.getDefaultAdapter();
+		}
+		catch (Exception e)
+		{
+			Log.v(e.getCause().toString(),e.getMessage());
+		}
+	}
 
-	      lv = (ListView)findViewById(R.id.listView1);
+public void on()
+{
+	try
+	{
+		if (!BA.isEnabled())
+		{
+			Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+			startActivityForResult(turnOn, 0);
+			Toast.makeText(getApplicationContext(),"Turned on",Toast.LENGTH_LONG).show();
+		}
+		else
+		{
+			Toast.makeText(getApplicationContext(),"Already on",
+			Toast.LENGTH_LONG).show();
+		}
+	} catch (Exception e)
+	{
+		Log.v("ERROR", "Unable to turn on bluetooth.");
+	}
+}
 
-	      BA = BluetoothAdapter.getDefaultAdapter();
-	   }
-
-	   public void on() {
-	      if (!BA.isEnabled()) {
-	         Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-	         startActivityForResult(turnOn, 0);
-	         Toast.makeText(getApplicationContext(),"Turned on" 
-	         ,Toast.LENGTH_LONG).show();
-	      }
-	      else{
-	         Toast.makeText(getApplicationContext(),"Already on",
-	         Toast.LENGTH_LONG).show();
-	         }
-	   }
+//AB HIER CODE FORMATIEREN
 	   public void list() {
 	      pairedDevices = BA.getBondedDevices();
 
