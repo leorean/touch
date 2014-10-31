@@ -30,6 +30,7 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
+		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		//	      On = (Button)findViewById(R.id.button1);
@@ -47,28 +48,28 @@ public class MainActivity extends Activity {
 		}
 	}
 
-public void on()
-{
-	try
+	public void on()
 	{
-		if (!BA.isEnabled())
+		try
 		{
-			Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			startActivityForResult(turnOn, 0);
-			Toast.makeText(getApplicationContext(),"Turned on",Toast.LENGTH_LONG).show();
-		}
-		else
+			if (!BA.isEnabled())
+			{
+				Intent turnOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+				startActivityForResult(turnOn, 0);
+				Toast.makeText(getApplicationContext(),"Turned on",Toast.LENGTH_LONG).show();
+			}
+			else
+			{
+				Toast.makeText(getApplicationContext(),"Already on",
+				Toast.LENGTH_LONG).show();
+			}
+		} catch (Exception e)
 		{
-			Toast.makeText(getApplicationContext(),"Already on",
-			Toast.LENGTH_LONG).show();
+			Log.v("ERROR", "Unable to turn on bluetooth.");
 		}
-	} catch (Exception e)
-	{
-		Log.v("ERROR", "Unable to turn on bluetooth.");
 	}
-}
 
-//AB HIER CODE FORMATIEREN
+	//AB HIER CODE FORMATIEREN
 	   public void list() {
 	      pairedDevices = BA.getBondedDevices();
 
