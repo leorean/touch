@@ -2,14 +2,22 @@ package com.example.touch;
 
 import com.example.touch.R;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.UUID;
 
 import android.support.v7.app.ActionBarActivity;
 import android.app.Activity;
+import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -18,36 +26,100 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Filter;
 import android.widget.ListView;
 import android.widget.Toast;
+import java.util.UUID;
 
 public class MainActivity extends Activity {
 
+	//BT MULTIMETER
+	//00:1A:7D:16:46:C5
+	
+	public UUID mUUID = UUID.randomUUID();
+	
+	public static String MULTIMETER = "00:1A:7D:16:46:C5";
+	private boolean isConnected = false;
+	
+	private BluetoothDevice device;
+	private InputStream is;
+	private OutputStream os;
+	
 	// private Button On,Off,Visible,list;
 	private BluetoothAdapter BA;
 	private Set<BluetoothDevice>pairedDevices;
 	private ListView lv;
+	private int request_code_for_enabling_bt; //If >= 0, this code will be returned in onActivityResult() when the activity exits.
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		//	      On = (Button)findViewById(R.id.button1);
-		//	      Off = (Button)findViewById(R.id.button2);
-		//	      Visible = (Button)findViewById(R.id.button3);
-		//	      list = (Button)findViewById(R.id.button4);
 		lv = (ListView)findViewById(R.id.listView1);
 		try
 		{
 			BA = BluetoothAdapter.getDefaultAdapter();
+
+			BroadcastReceiver btReceiver = new BroadcastReceiver() {
+			    @Override
+			    public void onReceive(Context context, Intent intent) {
+			        
+			    	String action = intent.getAction();
+			        
+			        if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
+			            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+			            if (device.getBondState() == BluetoothDevice.BOND_BONDED)
+			            {
+			                // CONNECT
+			            }
+			        } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+			            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+			            // Discover new device
+			        }
+			    }
+			};
+			
+	    	IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+	    	intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+	    	this.registerReceiver(btReceiver, intentFilter);
+
+			
+			if (!BA.isEnabled()) {
+			      Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE); 
+			      startActivityForResult(enableBtIntent, request_code_for_enabling_bt);
+			}
+
+			//bond device
+			
+			
+			Set<BluetoothDevice> pairedDevices = BA.getBondedDevices();
+			
+			for(BluetoothDevice bt : pairedDevices)
+				if (bt.getAddress().equals(MULTIMETER))
+					device = bt;
+
+			if (device == null)
+				Log.v("Error", "Device not found!");
+			else
+				Log.v("Device found", device.getAddress().toString());
+			
+			BluetoothSocket socket = device.createRfcommSocketToServiceRecord(mUUID);
+
+			Log.v("SOCKET",socket.toString());
+			socket.connect();
+			
+			is = socket.getInputStream();
+			os = socket.getOutputStream();
+			
 		}
 		catch (Exception e)
 		{
 			Log.v(e.getCause().toString(),e.getMessage());
 		}
 	}
-
+	
 	public void on()
 	{
 		try
@@ -70,19 +142,29 @@ public class MainActivity extends Activity {
 	}
 
 	//AB HIER CODE FORMATIEREN
-	   public void list() {
-	      pairedDevices = BA.getBondedDevices();
-
-	      ArrayList list = new ArrayList();
-	      for(BluetoothDevice bt : pairedDevices)
-	         list.add(bt.getName());
-
-	      Toast.makeText(getApplicationContext(),"Showing Paired Devices",
-	      Toast.LENGTH_SHORT).show();
-	      final ArrayAdapter adapter = new ArrayAdapter (this,android.R.layout.simple_list_item_1, list);
-	      lv.setAdapter(adapter);
-
-	   }
+		public void list()
+		{
+			pairedDevices = BA.getBondedDevices();
+			ArrayList list = new ArrayList();
+			
+			for(BluetoothDevice bt : pairedDevices)
+			{
+				list.add(bt.getAddress());
+				if (bt.getAddress() == MULTIMETER)
+				{
+					device = bt;
+				}
+			}		
+			if (device == null)
+			{
+				Log.v("Error", "Device not found!");
+			}
+			
+			Toast.makeText(getApplicationContext(),"Showing Paired Devices",
+			Toast.LENGTH_SHORT).show();
+			final ArrayAdapter adapter = new ArrayAdapter (this,android.R.layout.simple_list_item_1, list);
+			lv.setAdapter(adapter);
+		}
 	   public void off() {
 	      BA.disable();
 	      Toast.makeText(getApplicationContext(),"Turned off" ,
