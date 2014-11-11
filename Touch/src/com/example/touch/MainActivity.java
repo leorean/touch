@@ -187,10 +187,10 @@ public class MainActivity extends Activity
 			{
 				try
 				{
-					Thread.sleep(50);
+					Thread.sleep(200);
 					//TODO: rausfinden warum das nicht geht...
 					Log.v("stream",".");
-					bytes = mmInStream.read(buffer);
+					//bytes = mmInStream.read(buffer,0,buffer.length);
 					Log.v("stream","wtf");
 					/*
 					bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
@@ -207,12 +207,13 @@ public class MainActivity extends Activity
 							}
 						}
 					}*/
-				} catch (IOException e)
+				}/* catch (IOException e)
 				{
+					Log.v(TAG,"error");
 					//break;
-				} catch (InterruptedException e)
+				}*/ catch (InterruptedException e)
 				{
-					e.printStackTrace();
+					Log.v(TAG,"interrupted");
 				}
 			}
 		}
@@ -292,6 +293,7 @@ public class MainActivity extends Activity
 	public void close()
 	{
 		//connectThread.cancel();
+		connectedThread.interrupt();
 		System.exit(0);
 	}
 	
