@@ -27,12 +27,16 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnTouchListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Filter;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 import java.util.UUID;
 
@@ -65,6 +69,29 @@ public class MainActivity extends Activity
 	{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		
+		//----touchscreen stuff
+		
+		//TODO: hier weiter
+		
+		View v = (View) findViewById(R.id.content);
+		v.setOnTouchListener(
+				new OnTouchListener() {
+					@Override
+					public boolean onTouch(View v, MotionEvent event) {
+						if(event.getAction() == MotionEvent.ACTION_MOVE){
+							int x =(int)  event.getRawX();
+							int y =(int)  event.getRawY();
+							Log.v("motion",String.valueOf(x) + ":" + String.valueOf(y));
+						}      
+						return true;
+					}
+				});
+		
+		final TextView tvOhm = (TextView) findViewById(R.id.tvOhm);
+		tvOhm.setText("initialising...");
+		
+		//----bluetooth stuff
 		
 		BA = BluetoothAdapter.getDefaultAdapter();
 		if (BA == null)
@@ -189,8 +216,8 @@ public class MainActivity extends Activity
 				{
 					Thread.sleep(200);
 					//TODO: rausfinden warum das nicht geht...
-					Log.v("stream",".");
-					//bytes = mmInStream.read(buffer,0,buffer.length);
+					Log.v("stream","test");
+					bytes = mmInStream.read(buffer,0,buffer.length);
 					Log.v("stream","wtf");
 					/*
 					bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
@@ -207,11 +234,11 @@ public class MainActivity extends Activity
 							}
 						}
 					}*/
-				}/* catch (IOException e)
+				} catch (IOException e)
 				{
-					Log.v(TAG,"error");
+					Log.v(TAG,"error " + e.getMessage());
 					//break;
-				}*/ catch (InterruptedException e)
+				} catch (InterruptedException e)
 				{
 					Log.v(TAG,"interrupted");
 				}
@@ -252,6 +279,10 @@ public class MainActivity extends Activity
 	
 	public void toggleBluetooth()
 	{
+		//just a test 
+		//final TextView mTextView = (TextView) findViewById(R.id.tvOhm);
+		//mTextView.setText("Some Text");
+		
 		if (BA != null)
 		{
 			if (!BA.isEnabled())

@@ -10,5 +10,6 @@
     <string name="toggle_bluetooth">Toggle Bluetooth</string>
     <string name="pair_multimeter">Pair Multimeter</string>
     <string name="close">Close</string>
+    <string name="strOhm">------</string>
 
 </resources>
