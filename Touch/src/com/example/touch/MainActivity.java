@@ -24,13 +24,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
+import android.view.Window;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Filter;
@@ -52,7 +55,14 @@ public class MainActivity extends Activity
 	
 	public static String TAG = "TOUCH";
 	
+	//----screen stuff----
 	private ListView lv;
+	
+	private DisplayMetrics metrics = new DisplayMetrics();
+	private int screenWidth;
+	private int screenHeight;
+	
+	//----
 	
 	private BluetoothDevice device;
 	private InputStream is;
@@ -72,24 +82,45 @@ public class MainActivity extends Activity
 		
 		//----touchscreen stuff
 		
-		//TODO: hier weiter
+		final TextView tvOhm = (TextView) findViewById(R.id.tvOhm);
+		tvOhm.setText("initialising...");
 		
 		View v = (View) findViewById(R.id.content);
 		v.setOnTouchListener(
 				new OnTouchListener() {
 					@Override
-					public boolean onTouch(View v, MotionEvent event) {
-						if(event.getAction() == MotionEvent.ACTION_MOVE){
-							int x =(int)  event.getRawX();
-							int y =(int)  event.getRawY();
-							Log.v("motion",String.valueOf(x) + ":" + String.valueOf(y));
-						}      
+					public boolean onTouch(View v, MotionEvent me)
+					{
+						int x = 0, y = 0;
+						float p = 0;
+
+						for (int i = 0; i < me.getPointerCount(); i++)
+						{
+							x = (int) me.getX(i);
+							y = (int) me.getY(i);
+							p = (float) me.getPressure(i);
+						}
+						
+						//touch moving
+						if(me.getAction() == MotionEvent.ACTION_MOVE)
+						{
+							tvOhm.setText("x: " + String.valueOf(x)
+									+ ", y: " + String.valueOf(y)
+									+ ", p: " + String.valueOf(p));							
+						}
+						//touch released
+						if (me.getAction() == MotionEvent.ACTION_UP)
+						{
+							getWindowManager().getDefaultDisplay().getMetrics(metrics);
+							screenWidth = metrics.widthPixels;
+							screenHeight = metrics.heightPixels;
+							Log.v("motion",String.valueOf(screenWidth)+":"+String.valueOf(screenHeight) + ":" + String.valueOf(x)+":"+String.valueOf(y));
+							if (x > screenWidth *7/10 && y > screenHeight * 7/10)
+								Log.v("motion","yes");
+						}
 						return true;
 					}
 				});
-		
-		final TextView tvOhm = (TextView) findViewById(R.id.tvOhm);
-		tvOhm.setText("initialising...");
 		
 		//----bluetooth stuff
 		
