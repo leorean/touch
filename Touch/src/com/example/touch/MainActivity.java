@@ -8,10 +8,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Set;
 import java.util.UUID;
@@ -82,8 +84,9 @@ public class MainActivity extends Activity implements OnClickListener
 	private boolean isLogging = false;
 	private Button btnTrack;
 	private BufferedWriter writer;
+	private TextView tvOhm;
 	
-	private	int tx = 0, ty = 0, tc = 0;
+	private	int tx[] = {0,0,0,0,0,0,0,0,0,0}, ty[] = {0,0,0,0,0,0,0,0,0,0}, tc = 0;
 	private float tp = 0;
 
 	@Override
@@ -96,7 +99,7 @@ public class MainActivity extends Activity implements OnClickListener
 		setContentView(R.layout.activity_main);
 		
 		//display the coordinate and pressure in real time:
-		final TextView tvOhm = (TextView) findViewById(R.id.tvOhm);
+		tvOhm = (TextView) findViewById(R.id.tvOhm);
 		tvOhm.setText("initialising...");
 		
 		View v = (View) findViewById(R.id.content);
@@ -105,51 +108,55 @@ public class MainActivity extends Activity implements OnClickListener
 				@Override
 				public boolean onTouch(View v, MotionEvent me)
 				{
+					
+					//clear tx and ty
+					Arrays.fill(tx, 0);
+					Arrays.fill(ty, 0);
+					tp = 0; tc = 0;
+					
 					for (int i = 0; i < me.getPointerCount(); i++)
 					{
-						tx = (int) me.getX(i);
-						ty = (int) me.getY(i);
-						tp = (float) me.getPressure(i);
+						tx[i] = (int) me.getX(i);
+						ty[i] = (int) me.getY(i);
+						tp = (float) me.getPressure(i); //not an array, because we will only receive ONE pressure
 						tc = i; //how many fingers are used
 					}
 					
 					//touch moving
 					if(me.getAction() == MotionEvent.ACTION_MOVE)
 					{
-						tvOhm.setText("x: " + String.valueOf(tx)
-								+ ", y: " + String.valueOf(ty)
+						tvOhm.setText("x: " + String.valueOf(tx[tc])
+								+ ", y: " + String.valueOf(ty[tc])
 								+ ", p: " + String.valueOf(tp)
-								+ ", count: " + String.valueOf(tc));
+								+ ", count: " + String.valueOf(tc+1));
 						
 						if (writer != null)
 						{
 							try
 							{
-								writer.append(String.valueOf(tx)+";"+String.valueOf(ty)+";"+String.valueOf(tp));
+								writer.append(String.valueOf(tx[tc])+";"+String.valueOf(ty[tc])+";"+String.valueOf(tp));
 								writer.newLine();
+								
+								//TODO: save exact time/delay??
+								
 							}
 							catch (IOException e) {Log.v("Error",e.getMessage());}
 							
+						} else
+						{
+							if ((tc+1) == 5)
+								btnTrack.setVisibility(View.VISIBLE);
+							if ((tc+1) == 10)
+								btnTrack.setVisibility(View.INVISIBLE);
 						}
 					}
+					
 					//touch released
 					if (me.getAction() == MotionEvent.ACTION_UP)
 					{
-						getWindowManager().getDefaultDisplay().getMetrics(metrics);
-						screenWidth = metrics.widthPixels;
-						screenHeight = metrics.heightPixels;
 						
-						//TODO: FIX BUG SO THE TC VARIABLE IS STORED 
-						
-						Log.v("motion",String.valueOf(tc));
-						if (tc == 5)
-						{
-							Log.v("motion","enabling track button");
-							btnTrack.setClickable(!btnTrack.isClickable());
-							//btnTrack.setVisibility(View.VISIBLE);
-						}
-						//tc = 0;
 					}
+					
 					return true;
 				}
 			}
@@ -159,6 +166,7 @@ public class MainActivity extends Activity implements OnClickListener
 		
 		//track button
 		btnTrack = (Button) findViewById(R.id.btnTrack);
+		btnTrack.setVisibility(View.INVISIBLE);
 		btnTrack.setOnClickListener(this);
 		if(!isLogging) btnTrack.setText("Start Logging");
 		else btnTrack.setText("Stop Logging");
@@ -498,13 +506,8 @@ public class MainActivity extends Activity implements OnClickListener
 					try
 					{
 						writer = new BufferedWriter(new FileWriter(file, true));
-						
-						
-						//buf.append("tesssssst");
-						//buf.newLine();
-						
-						
 						isLogging = true;
+						
 					} catch (IOException e) {Log.v("Error",e.getMessage());}
 				} else //DISABLE LOGGING:
 				{
@@ -512,8 +515,10 @@ public class MainActivity extends Activity implements OnClickListener
 					
 					try
 					{
+						Toast.makeText(getApplicationContext(),"Saved File as " + file.getAbsolutePath().toString(),Toast.LENGTH_LONG).show();
 						writer.close();
 						writer = null;
+						
 					} catch (IOException e) {Log.v("Error",e.getMessage());}
 					isLogging = false;
 				}
