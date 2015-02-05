@@ -27,6 +27,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.opengl.Visibility;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -82,6 +83,9 @@ public class MainActivity extends Activity implements OnClickListener
 	private Button btnTrack;
 	private BufferedWriter writer;
 	
+	private	int tx = 0, ty = 0, tc = 0;
+	private float tp = 0;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -101,28 +105,27 @@ public class MainActivity extends Activity implements OnClickListener
 				@Override
 				public boolean onTouch(View v, MotionEvent me)
 				{
-					int x = 0, y = 0;
-					float p = 0;
-
 					for (int i = 0; i < me.getPointerCount(); i++)
 					{
-						x = (int) me.getX(i);
-						y = (int) me.getY(i);
-						p = (float) me.getPressure(i);
+						tx = (int) me.getX(i);
+						ty = (int) me.getY(i);
+						tp = (float) me.getPressure(i);
+						tc = i; //how many fingers are used
 					}
 					
 					//touch moving
 					if(me.getAction() == MotionEvent.ACTION_MOVE)
 					{
-						tvOhm.setText("x: " + String.valueOf(x)
-								+ ", y: " + String.valueOf(y)
-								+ ", p: " + String.valueOf(p));
+						tvOhm.setText("x: " + String.valueOf(tx)
+								+ ", y: " + String.valueOf(ty)
+								+ ", p: " + String.valueOf(tp)
+								+ ", count: " + String.valueOf(tc));
 						
 						if (writer != null)
 						{
 							try
 							{
-								writer.append(String.valueOf(x)+";"+String.valueOf(y)+";"+String.valueOf(p));
+								writer.append(String.valueOf(tx)+";"+String.valueOf(ty)+";"+String.valueOf(tp));
 								writer.newLine();
 							}
 							catch (IOException e) {Log.v("Error",e.getMessage());}
@@ -135,9 +138,17 @@ public class MainActivity extends Activity implements OnClickListener
 						getWindowManager().getDefaultDisplay().getMetrics(metrics);
 						screenWidth = metrics.widthPixels;
 						screenHeight = metrics.heightPixels;
-						Log.v("motion",String.valueOf(screenWidth)+":"+String.valueOf(screenHeight) + ":" + String.valueOf(x)+":"+String.valueOf(y));
-						if (x > screenWidth *7/10 && y > screenHeight * 7/10)
-							Log.v("motion","yes");
+						
+						//TODO: FIX BUG SO THE TC VARIABLE IS STORED 
+						
+						Log.v("motion",String.valueOf(tc));
+						if (tc == 5)
+						{
+							Log.v("motion","enabling track button");
+							btnTrack.setClickable(!btnTrack.isClickable());
+							//btnTrack.setVisibility(View.VISIBLE);
+						}
+						//tc = 0;
 					}
 					return true;
 				}
