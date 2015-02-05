@@ -6,9 +6,16 @@
 
     <TextView
         android:id="@+id/tvOhm"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_weight="0.69"
         android:text="@string/strOhm"
         android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <Button
+        android:id="@+id/btnTrack"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Track" />
 
 </LinearLayout>

@@ -2,6 +2,7 @@ package com.example.touch;
 
 import com.example.touch.R;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,6 +35,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Filter;
@@ -43,12 +45,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.util.UUID;
 
-public class MainActivity extends Activity
+public class MainActivity extends Activity implements OnClickListener
 {
-	
-	//BT MULTIMETER
-	//00:1A:7D:16:46:C5
-	
 	public UUID mUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); 
 	
 	public static String MULTIMETER = "00:1A:7D:16:46:C5";
@@ -62,66 +60,97 @@ public class MainActivity extends Activity
 	private int screenWidth;
 	private int screenHeight;
 	
-	//----
-	
+	//----bluetooth stuff----
 	private BluetoothDevice device;
 	private InputStream is;
 	private OutputStream os;
-	
-	// private Button On,Off,Visible,list;
 	private BluetoothAdapter BA;
-	
 	private ConnectThread connectThread;
 	private ConnectedThread connectedThread;
+	
+	//----logging stuff----
+	private File file;
+	private String fileName;
+	private boolean isLogging = false;
+	private Button btnTrack;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
 		setContentView(R.layout.activity_main);
 		
-		//----touchscreen stuff
-		
+		//display the coordinate and pressure in real time:
 		final TextView tvOhm = (TextView) findViewById(R.id.tvOhm);
 		tvOhm.setText("initialising...");
 		
 		View v = (View) findViewById(R.id.content);
 		v.setOnTouchListener(
-				new OnTouchListener() {
-					@Override
-					public boolean onTouch(View v, MotionEvent me)
-					{
-						int x = 0, y = 0;
-						float p = 0;
+			new OnTouchListener() {
+				@Override
+				public boolean onTouch(View v, MotionEvent me)
+				{
+					int x = 0, y = 0;
+					float p = 0;
 
-						for (int i = 0; i < me.getPointerCount(); i++)
-						{
-							x = (int) me.getX(i);
-							y = (int) me.getY(i);
-							p = (float) me.getPressure(i);
-						}
-						
-						//touch moving
-						if(me.getAction() == MotionEvent.ACTION_MOVE)
-						{
-							tvOhm.setText("x: " + String.valueOf(x)
-									+ ", y: " + String.valueOf(y)
-									+ ", p: " + String.valueOf(p));							
-						}
-						//touch released
-						if (me.getAction() == MotionEvent.ACTION_UP)
-						{
-							getWindowManager().getDefaultDisplay().getMetrics(metrics);
-							screenWidth = metrics.widthPixels;
-							screenHeight = metrics.heightPixels;
-							Log.v("motion",String.valueOf(screenWidth)+":"+String.valueOf(screenHeight) + ":" + String.valueOf(x)+":"+String.valueOf(y));
-							if (x > screenWidth *7/10 && y > screenHeight * 7/10)
-								Log.v("motion","yes");
-						}
-						return true;
+					for (int i = 0; i < me.getPointerCount(); i++)
+					{
+						x = (int) me.getX(i);
+						y = (int) me.getY(i);
+						p = (float) me.getPressure(i);
 					}
-				});
+					
+					//touch moving
+					if(me.getAction() == MotionEvent.ACTION_MOVE)
+					{
+						tvOhm.setText("x: " + String.valueOf(x)
+								+ ", y: " + String.valueOf(y)
+								+ ", p: " + String.valueOf(p));							
+					}
+					//touch released
+					if (me.getAction() == MotionEvent.ACTION_UP)
+					{
+						getWindowManager().getDefaultDisplay().getMetrics(metrics);
+						screenWidth = metrics.widthPixels;
+						screenHeight = metrics.heightPixels;
+						Log.v("motion",String.valueOf(screenWidth)+":"+String.valueOf(screenHeight) + ":" + String.valueOf(x)+":"+String.valueOf(y));
+						if (x > screenWidth *7/10 && y > screenHeight * 7/10)
+							Log.v("motion","yes");
+					}
+					return true;
+				}
+			}
+		);
 		
+		
+		
+		//track button
+		btnTrack = (Button) findViewById(R.id.btnTrack);
+		btnTrack.setOnClickListener(this);
+		if(!isLogging) btnTrack.setText("Start Tracking");
+		else btnTrack.setText("Stop Tracking");
+		/*
+		Button b = (Button) findViewById(R.id.btnTrack);
+		b.setOnClickListener(
+			new OnClickListener()
+			{
+				@Override
+				public void onClick(View v)
+				{
+					isLogging = !isLogging;
+					//findViewById(R.id.btnTrack).setVisibility(View.GONE);
+					//findViewById(R.menu.main).setVisibility(View.GONE);
+					Log.v("button",String.valueOf(isLogging));
+	 			};
+	 
+			}
+		);
+		if(!isLogging) b.setText("Start Tracking");
+		else b.setText("Stop Tracking");
+		*/
 		//----bluetooth stuff
 		
 		BA = BluetoothAdapter.getDefaultAdapter();
@@ -140,6 +169,18 @@ public class MainActivity extends Activity
 		}
 		
 	}
+	
+	/*
+	public void onClick(View v)
+	{
+		
+		switch(v.getId())
+	    {
+	    	case R.id.btnTrack:
+	    		Log.v("button","clicked");
+	    	break;
+	    }
+	}*/
 	
 	private BluetoothDevice getFromAdapter()
 	{
@@ -161,6 +202,7 @@ public class MainActivity extends Activity
 		Log.v(TAG,"Device was not found.");
 		return null;
 	}
+	
 	/**
 	 * Thread that sets up Communication
 	 */
@@ -355,7 +397,8 @@ public class MainActivity extends Activity
 	public void close()
 	{
 		//connectThread.cancel();
-		connectedThread.interrupt();
+		if (connectedThread != null)
+			connectedThread.interrupt();
 		System.exit(0);
 	}
 	
@@ -398,5 +441,35 @@ public class MainActivity extends Activity
 			break;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+	public void onClick(View v) {
+		// TODO Auto-generated method stub
+		switch (v.getId())
+		{
+			case R.id.btnTrack:
+				
+				//if not logging, choose a proper filename depending on current datetime (todo)
+				if (!isLogging) fileName = "log.txt";
+				
+				isLogging = !isLogging;
+				
+				if(!isLogging)
+				{
+					btnTrack.setText("Start Tracking");
+				}
+				else
+				{
+					file = new File(fileName);
+					if (!file.exists())
+					{
+						//open stream, start writing
+					}
+					btnTrack.setText("Stop Tracking");
+				}				
+			break;
+		
+		}
 	}
 }
