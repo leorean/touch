@@ -86,7 +86,11 @@ public class MainActivity extends Activity implements OnClickListener
 	private BufferedWriter writer;
 	private TextView tvOhm;
 	
-	private	int tx[] = {0,0,0,0,0,0,0,0,0,0}, ty[] = {0,0,0,0,0,0,0,0,0,0}, tc = 0;
+	//10 x and y coordinates, for up to 10 fingers
+	private	int tx[] = {0,0,0,0,0,0,0,0,0,0}, ty[] = {0,0,0,0,0,0,0,0,0,0};
+	//tc is the count of fingers used
+	private int tc = 0;
+	//tp is the physical pressure applied
 	private float tp = 0;
 
 	@Override
