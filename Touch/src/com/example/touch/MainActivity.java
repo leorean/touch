@@ -2,16 +2,22 @@ package com.example.touch;
 
 import com.example.touch.R;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Set;
 import java.util.UUID;
 
 import android.support.v7.app.ActionBarActivity;
+import android.text.format.Time;
 import android.app.Activity;
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
@@ -22,6 +28,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
@@ -73,6 +80,7 @@ public class MainActivity extends Activity implements OnClickListener
 	private String fileName;
 	private boolean isLogging = false;
 	private Button btnTrack;
+	private BufferedWriter writer;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
@@ -108,7 +116,18 @@ public class MainActivity extends Activity implements OnClickListener
 					{
 						tvOhm.setText("x: " + String.valueOf(x)
 								+ ", y: " + String.valueOf(y)
-								+ ", p: " + String.valueOf(p));							
+								+ ", p: " + String.valueOf(p));
+						
+						if (writer != null)
+						{
+							try
+							{
+								writer.append(String.valueOf(x)+";"+String.valueOf(y)+";"+String.valueOf(p));
+								writer.newLine();
+							}
+							catch (IOException e) {Log.v("Error",e.getMessage());}
+							
+						}
 					}
 					//touch released
 					if (me.getAction() == MotionEvent.ACTION_UP)
@@ -130,8 +149,8 @@ public class MainActivity extends Activity implements OnClickListener
 		//track button
 		btnTrack = (Button) findViewById(R.id.btnTrack);
 		btnTrack.setOnClickListener(this);
-		if(!isLogging) btnTrack.setText("Start Tracking");
-		else btnTrack.setText("Stop Tracking");
+		if(!isLogging) btnTrack.setText("Start Logging");
+		else btnTrack.setText("Stop Logging");
 		/*
 		Button b = (Button) findViewById(R.id.btnTrack);
 		b.setOnClickListener(
@@ -444,30 +463,55 @@ public class MainActivity extends Activity implements OnClickListener
 	}
 
 	@Override
-	public void onClick(View v) {
-		// TODO Auto-generated method stub
+	public void onClick(View v)
+	{
 		switch (v.getId())
 		{
 			case R.id.btnTrack:
 				
-				//if not logging, choose a proper filename depending on current datetime (todo)
-				if (!isLogging) fileName = "log.txt";
 				
-				isLogging = !isLogging;
+				if (!isLogging) //ENABLE LOGGING:
+				{
+				
+					try
+					{
+						DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+						Calendar cal = Calendar.getInstance();
+								
+						file = new File(this.getExternalFilesDir(null), "log"+cal.getTime().toString()+".txt");
+						if (!file.exists())
+							file.createNewFile();
+						Log.v("file", file.getAbsolutePath().toString());
+					} catch (IOException e) {Log.v("Error",e.getMessage());}
+					
+					try
+					{
+						writer = new BufferedWriter(new FileWriter(file, true));
+						
+						
+						//buf.append("tesssssst");
+						//buf.newLine();
+						
+						
+						isLogging = true;
+					} catch (IOException e) {Log.v("Error",e.getMessage());}
+				} else //DISABLE LOGGING:
+				{
+					
+					
+					try
+					{
+						writer.close();
+						writer = null;
+					} catch (IOException e) {Log.v("Error",e.getMessage());}
+					isLogging = false;
+				}
 				
 				if(!isLogging)
-				{
-					btnTrack.setText("Start Tracking");
-				}
+					btnTrack.setText("Start Logging");
 				else
-				{
-					file = new File(fileName);
-					if (!file.exists())
-					{
-						//open stream, start writing
-					}
-					btnTrack.setText("Stop Tracking");
-				}				
+					btnTrack.setText("Stop Logging");
+				
 			break;
 		
 		}
