@@ -11,5 +11,7 @@
     <string name="pair_multimeter">Pair Multimeter</string>
     <string name="close">Close</string>
     <string name="strOhm">------</string>
+    <string name="strResultText">- Ohm</string>
+    
 
 </resources>

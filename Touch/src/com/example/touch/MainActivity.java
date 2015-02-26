@@ -1,43 +1,30 @@
 package com.example.touch;
 
-import com.example.touch.R;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
-
-import android.support.v7.app.ActionBarActivity;
-import android.text.format.Time;
 import android.app.Activity;
-import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.opengl.Visibility;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -46,14 +33,10 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.Filter;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
-import java.util.UUID;
 
 public class MainActivity extends Activity implements OnClickListener
 {
@@ -63,8 +46,21 @@ public class MainActivity extends Activity implements OnClickListener
 	
 	public static String TAG = "TOUCH";
 	
+	// Constants that indicate the current connection state
+	private static final int STATE_NONE = 0; // we're doing nothing
+    private static final int STATE_LISTEN = 1; // now listening for incoming
+                                              // connections
+    private static final int STATE_CONNECTING = 2; // now initiating an outgoing
+                                                  // connection
+    private static final int STATE_CONNECTED = 3; // now connected to a remote
+                                                 // device
+	private int state = STATE_NONE;
+    
 	//----screen stuff----
 	private ListView lv;
+	
+	//ui interaction stuff
+	public static final int MESSAGE_READ = 1;
 	
 	private DisplayMetrics metrics = new DisplayMetrics();
 	private int screenWidth;
@@ -77,6 +73,7 @@ public class MainActivity extends Activity implements OnClickListener
 	private BluetoothAdapter BA;
 	private ConnectThread connectThread;
 	private ConnectedThread connectedThread;
+	private AcceptThread acceptThread;
 	
 	//----logging stuff----
 	private File file;
@@ -86,6 +83,9 @@ public class MainActivity extends Activity implements OnClickListener
 	private BufferedWriter writer;
 	private TextView tvOhm;
 	
+	private Timer timer;
+    TimerTask task = null;
+	
 	//10 x and y coordinates, for up to 10 fingers
 	private	int tx[] = {0,0,0,0,0,0,0,0,0,0}, ty[] = {0,0,0,0,0,0,0,0,0,0};
 	//tc is the count of fingers used
@@ -93,6 +93,8 @@ public class MainActivity extends Activity implements OnClickListener
 	//tp is the physical pressure applied
 	private float tp = 0;
 
+	private Parser mParser;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -141,7 +143,7 @@ public class MainActivity extends Activity implements OnClickListener
 								writer.append(String.valueOf(tx[tc])+";"+String.valueOf(ty[tc])+";"+String.valueOf(tp));
 								writer.newLine();
 								
-								//TODO: save exact time/delay??
+								//TODO: "save" exact time/delay??
 								
 							}
 							catch (IOException e) {Log.v("Error",e.getMessage());}
@@ -199,17 +201,38 @@ public class MainActivity extends Activity implements OnClickListener
 		if (BA == null)
 			Log.v(TAG,"Device does not support Bluetooth");
 	
+		mParser = new Parser();
+		
 		if (BA.isEnabled())
 			device = getFromAdapter();
 		else
 			Toast.makeText(getApplicationContext(),"Please make sure Bluetooth is turned on and the Device is paired",Toast.LENGTH_LONG).show();
+	}
+
+	private void connect() {
 		
+		// Cancel any thread attempting to make a connection
+        if (state == STATE_CONNECTING) {
+            if (connectThread != null) {
+            	connectThread.cancel();
+            	connectThread = null;
+            }
+        }
+
+        // Cancel any thread currently running a connection
+        if (connectedThread != null) {
+        	connectedThread.cancel();
+        	connectedThread = null;
+        }
+
+        // Start the thread to connect with the given device	
 		if (device != null)
 		{
 			connectThread = new ConnectThread(device);
 			connectThread.start();
+			
+			setState(STATE_CONNECTING);
 		}
-		
 	}
 	
 	/*
@@ -223,6 +246,34 @@ public class MainActivity extends Activity implements OnClickListener
 	    	break;
 	    }
 	}*/
+	
+	private void connected(BluetoothSocket socket,
+			BluetoothDevice device) {
+		 // Cancel the thread that completed the connection
+        if (connectThread != null) {
+        	connectThread.cancel();
+        	connectThread = null;
+        }
+
+        // Cancel any thread currently running a connection
+        if (connectedThread != null) {
+            connectedThread.cancel();
+            connectedThread = null;
+        }
+
+     // Cancel the accept thread because we only want to connect to one
+        // device
+        if (acceptThread != null) {
+            acceptThread.cancel();
+            acceptThread = null;
+        }
+
+        // Start the thread to manage the connection and perform transmissions
+        connectedThread = new ConnectedThread(socket);
+        connectedThread.start();
+        
+        setState(STATE_CONNECTED);
+	}
 	
 	private BluetoothDevice getFromAdapter()
 	{
@@ -273,19 +324,28 @@ public class MainActivity extends Activity implements OnClickListener
 				mmSocket.connect();
 			} catch (IOException connectException)
 			{
+				Log.v(TAG,"Unable to connect to socket.");
 				try
 				{
 					mmSocket.close();
 				} catch (IOException closeException)
 				{
-					Log.v(TAG,"Unable to connect socket.");
+					Log.v(TAG,"Unable to close socket.");
 				}
+
+				this.start();
 				return;
 			}
 			Log.v(TAG, "Starting a connection..");
-			connectedThread = new ConnectedThread(mmSocket);
-			connectedThread.start();
+						// Reset the ConnectThread because we're done
+            synchronized (this) {
+                connectThread = null;
+            }
+
+            // Start the connected thread
+            connected(mmSocket, mmDevice);
 		}
+		
 		public void cancel()
 		{
 			try
@@ -315,7 +375,9 @@ public class MainActivity extends Activity implements OnClickListener
 			{
 				tmpIn = socket.getInputStream();
 				tmpOut = socket.getOutputStream();
-			} catch (IOException e) { }
+			} catch (IOException e) {
+				Log.e("stream","get failed");
+			}
 			
 			mmInStream = tmpIn;
 			mmOutStream = tmpOut;
@@ -329,11 +391,21 @@ public class MainActivity extends Activity implements OnClickListener
 			{
 				try
 				{
-					Thread.sleep(200);
-					//TODO: rausfinden warum das nicht geht...
+					//Thread.sleep(200);
+					
+					//TODO: rausfinden warum das nicht geht!!!!
+					
 					Log.v("stream","test");
-					bytes = mmInStream.read(buffer,0,buffer.length);
+					
+					bytes = mmInStream.read(buffer,0,buffer.length); //scheint hier zu "locken" weil nix vom gerät zurückkommt..
 					Log.v("stream","wtf");
+					
+					byte[] tempData = Utility.cutData(buffer, bytes);
+					
+					processData(tempData);
+					
+					 mHandler.obtainMessage(MESSAGE_READ,
+							 tempData.length, -1, tempData).sendToTarget();
 					/*
 					bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
 					for(int i = begin; i < bytes; i++)
@@ -349,16 +421,15 @@ public class MainActivity extends Activity implements OnClickListener
 							}
 						}
 					}*/
+					
 				} catch (IOException e)
 				{
 					Log.v(TAG,"error " + e.getMessage());
 					//break;
-				} catch (InterruptedException e)
-				{
-					Log.v(TAG,"interrupted");
 				}
 			}
 		}
+		
 		public void write(byte[] bytes)
 		{
 			try
@@ -374,6 +445,92 @@ public class MainActivity extends Activity implements OnClickListener
 		}
 	}
 	
+	/**
+     * This thread runs while listening for incoming connections. It behaves
+     * like a server-side client. It runs until a connection is accepted (or
+     * until cancelled).
+     */
+    private class AcceptThread extends Thread {
+        // The local server socket
+        private final BluetoothServerSocket mmServerSocket;
+
+        public AcceptThread() {
+            BluetoothServerSocket tmp = null;
+
+            // Create a new listening server socket
+            try {
+                tmp = BA.listenUsingRfcommWithServiceRecord("SmartMeterActivity", mUUID);
+            } catch (IOException e) {
+                Log.e(TAG, "listen() failed", e);
+            }
+            mmServerSocket = tmp;
+        }
+
+        public void run() {
+            BluetoothSocket socket = null;
+
+            // Listen to the server socket if we're not connected
+            while (state != STATE_CONNECTED) {
+                try {
+                    // This is a blocking call and will only return on a
+                    // successful connection or an exception
+                    socket = mmServerSocket.accept();
+                } catch (IOException e) {
+                    Log.e(TAG, "accept() failed", e);
+                    break;
+                }
+
+                // If a connection was accepted
+                if (socket != null) {
+                    synchronized (this) {
+                        switch (state) {
+                        case STATE_LISTEN:
+                        case STATE_CONNECTING:
+                            // Situation normal. Start the connected thread.
+                            connected(socket, socket.getRemoteDevice());
+                            break;
+                        case STATE_NONE:
+                        case STATE_CONNECTED:
+                            // Either not ready or already connected. Terminate
+                            // new socket.
+                            try {
+                                socket.close();
+                            } catch (IOException e) {
+                                Log.e(TAG, "Could not close unwanted socket", e);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        public void cancel() {
+            try {
+                mmServerSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "close() of server failed", e);
+            }
+        }
+    }
+
+    private class CommandTask extends TimerTask {
+
+        Handler mHandler;
+		
+
+        public CommandTask(Handler mHandler) {
+            this.mHandler = mHandler;
+        }
+
+        @Override
+        public void run() {
+        	 byte[] cmd = mParser.encoder("".getBytes(), mParser.START_BIT,
+                     mParser.STOP_BIT, mParser.resistor);
+        	 MainActivity.this.write(cmd);
+        }
+    }
+	
 	Handler mHandler = new Handler()
 	{
 		@Override
@@ -384,13 +541,133 @@ public class MainActivity extends Activity implements OnClickListener
 			int end = (int)msg.arg2;
 			switch(msg.what)
 			{
-				case 1:
-					String writeMessage = new String(writeBuf);
-					writeMessage = writeMessage.substring(begin, end);
-				break;
+				case MESSAGE_READ:
+	                byte[] readBuf = (byte[]) msg.obj;
+	                // int tempInt2 = 0;
+	                displayData(readBuf);
+	                break;
 			}
 		}
 	};
+	
+	private void processData(byte[] data) 
+	{
+		mParser.add(data);
+		 if (mParser.isAvailable()) {
+            byte[] temp = mParser.getSaveData();
+            displayData(temp);
+        } else {
+            Utility.logging(TAG, "data is inavailable");
+        }
+	}
+	
+	private void displayData(byte[] data) {
+
+        if (data.length < 6) {
+            return;
+        }
+        int key = data[1] & 0xff;
+        int units = data[5] & 0xff;
+        int HighReal = (data[2] << 8) & 0xff00;
+        int lowReal = data[3] & 0xff;
+        int less = data[4] & 0xff;
+
+        String sign = "";
+        String unit = "";
+        switch (units) {
+        // V
+        // case 129:
+        // switch (units) {
+        case 1:
+            sign = "+";
+            unit = "mV";
+            break;
+        case 2:
+            sign = "+";
+            unit = "V";
+            break;
+        case 129:
+            sign = "-";
+            unit = "mV";
+            break;
+        case 130:
+            sign = "-";
+            unit = "V";
+            break;
+        // }
+        // break;
+        // A
+        // case 130:
+        // switch (units) {
+        case 4:
+            sign = "+";
+            unit = "A";
+            break;
+        case 132:
+            sign = "-";
+            unit = "A";
+            break;
+        // }
+        // break;
+        // mA
+        // case 131:
+        // switch (units) {
+        case 3:
+            sign = "+";
+            unit = "mA";
+            break;
+        case 131:
+            sign = "-";
+            unit = "mA";
+            break;
+        // }
+        // break;
+        // R
+        // case 132:
+        // sign = "";
+        // switch (units) {
+        case 5:
+            sign = "";
+            unit = "Ohm";
+            break;
+        case 6:
+            sign = "";
+            unit = "kOhm";
+            break;
+        case 7:
+            sign = "";
+            unit = "mOhm";
+            break;
+        // }
+        }
+
+        int combineData = HighReal + lowReal;
+        String all = sign + combineData + "." + getDecade(less) + " " + unit;
+
+
+        Log.i("Result", all);
+                
+        // updateLCD();
+    }
+
+    private String getDecade(int original) {
+        String back = String.valueOf(original);
+
+        if (0 < original && original < 10) {
+            back = "0" + back;
+        }
+        if (100 <= original) {
+            back = String.valueOf(original / 10);
+        }
+        // if (10 < original && original < 100) {
+        // back = original / 100;
+        // } else if (original >= 100) {
+        // // åŽ»å•†çš„ä¸ªä½�æ•°ï¼ˆç”¨å�–æ‘¸ï¼‰
+        // back = original / 100;
+        // }
+
+        return back;
+    }
 	
 	public void toggleBluetooth()
 	{
@@ -414,6 +691,19 @@ public class MainActivity extends Activity implements OnClickListener
 			Toast.makeText(getApplicationContext(),"Unable to detect bluetooth adapter!",Toast.LENGTH_LONG).show();
 		}
 	}
+	
+	public void write(byte[] out) {
+        // Create temporary object
+        ConnectedThread r;
+        // Synchronize a copy of the ConnectedThread
+        synchronized (this) {
+            if (state != STATE_CONNECTED)
+                return;
+            r = connectedThread;
+        }
+        // Perform the write unsynchronized
+        r.write(out);
+    }
 	
 	public void pair()
 	{
@@ -483,6 +773,61 @@ public class MainActivity extends Activity implements OnClickListener
 			break;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+    protected void onResume() {
+        super.onResume();
+
+     // Only if the state is STATE_NONE, do we know that we haven't
+        // started already
+        if (state == STATE_NONE) {
+            // Start the Bluetooth chat services
+            start();
+        }
+    }
+	
+	private void start() 
+	{
+		// Cancel any thread attempting to make a connection
+        if (connectThread != null) {
+        	connectThread.cancel();
+        	connectThread = null;
+        }
+
+        // Cancel any thread currently running a connection
+        if (connectedThread != null) {
+            connectedThread.cancel();
+            connectedThread = null;
+        }
+
+        // Start the thread to listen on a BluetoothServerSocket
+//        if (acceptThread == null) {
+//            acceptThread = new AcceptThread();
+//            acceptThread.start();
+//        }
+        
+        setState(STATE_LISTEN);
+		
+//        try {
+//			Thread.sleep(5000);
+//		} catch (InterruptedException e) {
+//			Log.e("Interrupted", "Interrupted");
+//		}
+//        
+        connect();
+        
+        if (timer == null) {
+            timer = new Timer();
+        }
+
+        task = new CommandTask(mHandler);
+        timer.scheduleAtFixedRate(task, 0, 300);
+	}
+
+	private void setState(int newState)
+	{
+		state = newState;
 	}
 
 	@Override
