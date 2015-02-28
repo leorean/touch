@@ -107,11 +107,6 @@ public class Parser {
 
     public void setSaveData(byte[] data) {
         saveData = data;
-        // tempData = saveData;
-        if (D)
-            Utility.logging(TAG,
-                    "setSaveData(byte[] saveData), save data length: "
-                            + data.length);
     }
 
     // **************************************************** //
@@ -126,8 +121,6 @@ public class Parser {
      */
     public void add(byte[] data) {
         if (byteArrayList != null) {
-            if (D)
-                Utility.logging(TAG, "add(byte[] data), Parser add byte[] data");
             byteArrayList.add(data);
         }
         // tempData = data;
@@ -149,9 +142,6 @@ public class Parser {
      */
     public void add(ArrayList<byte[]> data) {
         if (byteArrayList != null) {
-            if (D)
-                Utility.logging(TAG,
-                        "add(byte[] data), Parser add Arrarylist<T> data");
             byteArrayList = data;
         }
     }
@@ -164,18 +154,9 @@ public class Parser {
     public byte[] preDecoder() {
         if (byteArrayList != null) {
             try {
-                if (D)
-                    Utility.logging(TAG,
-                            "preDecoder(), Read data Array List length: "
-                                    + byteArrayList.size());
-
+                
                 byte[] back = linkingData(byteArrayList);
                 // byteArrayList.clear();
-
-                if (D)
-                    Utility.logging(TAG,
-                            "preDecoder(), After Linked Data length: "
-                                    + back.length);
 
                 return back;
             } catch (IOException e) {
@@ -208,12 +189,6 @@ public class Parser {
         data = baos.toByteArray();
         baos.reset();
 
-        if (D)
-            Utility.logging(TAG,
-                    "linkingData(ArrayList<byte[]> dataList), Linked data: "
-                            + data.length);
-
-        // printData(data);
         return data;
     }
 
@@ -251,7 +226,6 @@ public class Parser {
         int d;
         for (int i = 0; i < data.length; i++) {
             d = data[i] & 0xff;
-            Utility.logging(TAG, "printData(), data[" + i + "]: " + d);
         }
     }
 
@@ -282,33 +256,16 @@ public class Parser {
             if (data[i] == START_BIT[0]) {
                 sign++;
 
-                if (D)
-                    Utility.logging(TAG,
-                            "decoder(byte[] data), get the first header data: "
-                                    + data[i]);
-
                 if (data[i + 1] == START_BIT[1]) {
                     sign++;
                     // cut down the header
                     temp = cutHeader(data, data.length - START_BIT.length - i);
-
-                    if (D)
-                        Utility.logging(TAG,
-                                "decoder(byte[] data), temp array length: "
-                                        + temp.length);
-
-                    if (D)
-                        Utility.logging(TAG,
-                                "decoder(byte[] data), deal with the header: "
-                                        + data[i] + data[i + 1] + data[i + 2]);
                 }
             }
         }
 
         // not get the header
         if (temp == null) {
-            if (D)
-                Utility.logging(TAG, "decoder(byte[] data), not get the header");
             return false;
         }
 
@@ -322,9 +279,6 @@ public class Parser {
                     // temp = cutTrail(temp, temp.length - i - 2);
                     temp = cutTrail(temp, i - 1);
 
-                    if (D)
-                        Utility.logging(TAG,
-                                "decoder(byte[] data), deal with the trail data");
                     break;
                 }
             }
@@ -332,16 +286,10 @@ public class Parser {
 
         // it complete to parser the package
         if (sign == 4) {
-            if (D)
-                Utility.logging(TAG,
-                        "decoder(byte[] data), it complete to parser the data package");
             byteArrayList.clear();
             setSaveData(temp);
             return true;
         } else {
-            if (D)
-                Utility.logging(TAG,
-                        "decoder(byte[] data), it incomplete to parser the data package");
             byteArrayList.clear();
             return false;
         }
@@ -393,19 +341,6 @@ public class Parser {
         bab.append(trail, 0, trail.length); // trail
 
         back = bab.toByteArray();
-
-        if (D)
-            Utility.logging(TAG, "encoder(), encoding data_length: "
-                    + (data.length + 1));
-
-        if (D) {
-            Utility.logging(TAG, "encoder(), encoded data length: "
-                    + back.length);
-            for (int i = 0; i < back.length; i++) {
-                Utility.logging(TAG, "encoder(), encoded data[" + i + "]: "
-                        + back[i]);
-            }
-        }
 
         return back;
     }

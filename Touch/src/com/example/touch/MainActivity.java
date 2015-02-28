@@ -56,6 +56,8 @@ public class MainActivity extends Activity implements OnClickListener
                                                  // device
 	private int state = STATE_NONE;
     
+	public float pressure = 0; //THE PRESSURE
+	
 	//----screen stuff----
 	private ListView lv;
 	
@@ -124,7 +126,8 @@ public class MainActivity extends Activity implements OnClickListener
 					{
 						tx[i] = (int) me.getX(i);
 						ty[i] = (int) me.getY(i);
-						tp = (float) me.getPressure(i); //not an array, because we will only receive ONE pressure
+						//tp = (float) me.getPressure(i); //not an array, because we will only receive ONE pressure
+						tp = calculatePressure(pressure);
 						tc = i; //how many fingers are used
 					}
 					
@@ -207,6 +210,14 @@ public class MainActivity extends Activity implements OnClickListener
 			device = getFromAdapter();
 		else
 			Toast.makeText(getApplicationContext(),"Please make sure Bluetooth is turned on and the Device is paired",Toast.LENGTH_LONG).show();
+	}
+
+	protected float calculatePressure(float p)
+	{
+		float result = 0;
+		
+		// TODO Auto-generated method stub
+		return result;
 	}
 
 	private void connect() {
@@ -393,19 +404,15 @@ public class MainActivity extends Activity implements OnClickListener
 				{
 					//Thread.sleep(200);
 					
-					//TODO: rausfinden warum das nicht geht!!!!
-					
-					Log.v("stream","test");
-					
+					//Log.v("stream","test");
 					bytes = mmInStream.read(buffer,0,buffer.length); //scheint hier zu "locken" weil nix vom gerät zurückkommt..
-					Log.v("stream","wtf");
+					//Log.v("stream","wtf");
 					
 					byte[] tempData = Utility.cutData(buffer, bytes);
 					
 					processData(tempData);
 					
-					 mHandler.obtainMessage(MESSAGE_READ,
-							 tempData.length, -1, tempData).sendToTarget();
+					mHandler.obtainMessage(MESSAGE_READ, tempData.length, -1, tempData).sendToTarget();
 					/*
 					bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
 					for(int i = begin; i < bytes; i++)
@@ -557,7 +564,7 @@ public class MainActivity extends Activity implements OnClickListener
             byte[] temp = mParser.getSaveData();
             displayData(temp);
         } else {
-            Utility.logging(TAG, "data is inavailable");
+            //Utility.logging(TAG, "data is inavailable");
         }
 	}
 	
@@ -575,9 +582,7 @@ public class MainActivity extends Activity implements OnClickListener
         String sign = "";
         String unit = "";
         switch (units) {
-        // V
-        // case 129:
-        // switch (units) {
+        /*
         case 1:
             sign = "+";
             unit = "mV";
@@ -594,11 +599,7 @@ public class MainActivity extends Activity implements OnClickListener
             sign = "-";
             unit = "V";
             break;
-        // }
-        // break;
-        // A
-        // case 130:
-        // switch (units) {
+        
         case 4:
             sign = "+";
             unit = "A";
@@ -607,11 +608,7 @@ public class MainActivity extends Activity implements OnClickListener
             sign = "-";
             unit = "A";
             break;
-        // }
-        // break;
-        // mA
-        // case 131:
-        // switch (units) {
+        
         case 3:
             sign = "+";
             unit = "mA";
@@ -620,34 +617,39 @@ public class MainActivity extends Activity implements OnClickListener
             sign = "-";
             unit = "mA";
             break;
-        // }
-        // break;
-        // R
-        // case 132:
-        // sign = "";
-        // switch (units) {
+        
         case 5:
             sign = "";
             unit = "Ohm";
-            break;
+            break;*/
         case 6:
             sign = "";
             unit = "kOhm";
             break;
+        /*
         case 7:
             sign = "";
             unit = "mOhm";
             break;
-        // }
+        */
         }
 
         int combineData = HighReal + lowReal;
         String all = sign + combineData + "." + getDecade(less) + " " + unit;
 
-
-        Log.i("Result", all);
-                
-        // updateLCD();
+        if (units == 6) //kOhm
+        {
+        	pressure = combineData;
+        	
+        	//TODO: update textview here, not in the listener event
+        	
+        	Log.i("Result", all);
+            	
+        } else
+        {
+    		pressure = 0;
+        }
+        
     }
 
     private String getDecade(int original) {
@@ -659,13 +661,6 @@ public class MainActivity extends Activity implements OnClickListener
         if (100 <= original) {
             back = String.valueOf(original / 10);
         }
-        // if (10 < original && original < 100) {
-        // back = original / 100;
-        // } else if (original >= 100) {
-        // // åŽ»å•†çš„ä¸ªä½�æ•°ï¼ˆç”¨å�–æ‘¸ï¼‰
-        // back = original / 100;
-        // }
-
         return back;
     }
 	
