@@ -216,6 +216,7 @@ public class MainActivity extends Activity implements OnClickListener
 	{
 		float result = 0;
 		
+		result = pressure;
 		// TODO Auto-generated method stub
 		return result;
 	}
@@ -639,15 +640,14 @@ public class MainActivity extends Activity implements OnClickListener
 
         if (units == 6) //kOhm
         {
-        	pressure = combineData;
-        	
         	//TODO: update textview here, not in the listener event
-        	
+        	pressure = Float.valueOf(combineData + "." + getDecade(less));
+            	
         	Log.i("Result", all);
             	
         } else
         {
-    		pressure = 0;
+    		
         }
         
     }
