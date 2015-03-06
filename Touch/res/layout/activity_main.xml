@@ -12,14 +12,6 @@
         android:text="@string/strOhm"
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
-    <TextView
-        android:id="@+id/tvResultText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="0.69"
-        android:text="@string/strResultText"
-        android:textAppearance="?android:attr/textAppearanceLarge"/>
-
     <Button
         android:id="@+id/btnTrack"
         android:layout_width="wrap_content"

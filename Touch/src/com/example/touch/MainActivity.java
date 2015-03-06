@@ -136,8 +136,8 @@ public class MainActivity extends Activity implements OnClickListener
 					{
 						tvOhm.setText("x: " + String.valueOf(tx[tc])
 								+ ", y: " + String.valueOf(ty[tc])
-								+ ", p: " + String.valueOf(tp)
-								+ ", count: " + String.valueOf(tc+1));
+								+ ", pressure: " + String.valueOf(tp) + " kOhm" 
+								+ ", fingers: " + String.valueOf(tc+1));
 						
 						if (writer != null)
 						{
@@ -817,7 +817,7 @@ public class MainActivity extends Activity implements OnClickListener
         }
 
         task = new CommandTask(mHandler);
-        timer.scheduleAtFixedRate(task, 0, 300);
+        timer.scheduleAtFixedRate(task, 0, 10);
 	}
 
 	private void setState(int newState)
