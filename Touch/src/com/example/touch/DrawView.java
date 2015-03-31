@@ -4,8 +4,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 
@@ -19,9 +17,6 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup.LayoutParams;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 
 public class DrawView extends View{
@@ -34,8 +29,6 @@ public class DrawView extends View{
 	private Paint circlePaint;
 	private Path circlePath;
 	private Paint textPaint;
-	private int pX;
-	private int pY;
 	//private float pressure;
 	private int finger = 0;
 	private float mX, mY;
@@ -77,7 +70,12 @@ public class DrawView extends View{
 		textPaint.setTextSize(30);
 		textPaint.setColor(Color.BLACK);
 	}
-
+	
+	
+	/**
+	 * listen to view changes
+	 * initialize bitmap and canvas object
+	 */
 	@Override
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 		super.onSizeChanged(w, h, oldw, oldh);
@@ -96,11 +94,13 @@ public class DrawView extends View{
 		super.onDraw(canvas);
 
 		// display pressure near touch
-		canvas.drawText(String.valueOf(MainActivity.calculatePressure()) + " kOhm" , tx[0]-200, ty[0]-100, textPaint);
+		canvas.drawText(String.format("%.4f", MainActivity.pressure) + " kOhm" , tx[0]-200, ty[0]-100, textPaint);
 
 		// display x and y position at top-left corner
+		// comment this line for not showing the position
 		canvas.drawText("x: " + String.valueOf(tx[0]) + " y: " + String.valueOf(ty[0]), 5, 30, textPaint);
 		
+		// draw line and circle around finger touch
 		canvas.drawBitmap(mBitmap,0,0,mBitmapPaint);
 		canvas.drawPath(mPath, mPaint);
 		canvas.drawPath(circlePath, circlePaint);
@@ -138,7 +138,7 @@ public class DrawView extends View{
 			touch_move(tx[0], ty[0]);
 			if(writer != null) {
 				try {
-					writer.append("x: " + String.valueOf(tx[0]) + ";" + " y: " + String.valueOf(ty[0]) + "; " + String.valueOf(MainActivity.calculatePressure()+ " kOhm"));
+					writer.append("x: " + String.valueOf(tx[0]) + ";" + " y: " + String.valueOf(ty[0]) + "; " + String.format("%.4f", MainActivity.pressure) + " kOhm");
 					writer.newLine();
 				} catch (IOException e) {
 					Log.v("Error", e.getMessage());
@@ -163,66 +163,6 @@ public class DrawView extends View{
 			
 			stopLogging();		
 		}
-		
-		/*
-		switch (event.getAction()) {
-		case MotionEvent.ACTION_DOWN:
-			touch_start(tx[0], ty[0]);
-			invalidate();
-			break;
-		case MotionEvent.ACTION_MOVE:
-			touch_move(tx[0], ty[0]);
-			if(writer != null) {
-				try {
-					writer.append(String.valueOf(tx[0]) + ";" + String.valueOf(ty[0]) + ";" + String.valueOf(pressure));
-					writer.newLine();
-				} catch (IOException e) {
-					Log.v("Error", e.getMessage());
-				}
-			}
-			invalidate();
-			break;
-		case MotionEvent.ACTION_UP:
-			touch_up();
-			invalidate();
-			break;
-		case MotionEvent.ACTION_POINTER_UP:
-			
-			if(finger+1 == 2) {
-				Toast.makeText(getContext(), "bla", Toast.LENGTH_SHORT).show();
-				if (!isLogging) //ENABLE LOGGING:
-				{
-
-					try
-					{
-						DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-						Calendar cal = Calendar.getInstance();
-
-						file = new File(getContext().getExternalFilesDir(null), "log"+cal.getTime().toString()+".txt");
-						if (!file.exists())
-							file.createNewFile();
-						Log.v("file", file.getAbsolutePath().toString());
-					} catch (IOException e) {Log.v("Error",e.getMessage());}
-
-					try
-					{
-						writer = new BufferedWriter(new FileWriter(file, true));
-						isLogging = true;
-
-					} catch (IOException e) {Log.v("Error",e.getMessage());}
-				} 
-				
-			} else {
-				try
-				{
-					Toast.makeText(getContext(),"Saved File as " + file.getAbsolutePath().toString(),Toast.LENGTH_LONG).show();
-					writer.close();
-					writer = null;
-
-				} catch (IOException e) {Log.v("Error",e.getMessage());}
-				isLogging = false;
-			}
-		}*/
 		
 		invalidate();
 		return true;
@@ -264,6 +204,9 @@ public class DrawView extends View{
 		//mPath.reset();
 	}
 	
+	/**
+	 * start the logging process and set isLogging to true
+	 */
 	private void startLogging() {
 		try
 		{
@@ -284,6 +227,10 @@ public class DrawView extends View{
 
 		} catch (IOException e) {Log.v("Error",e.getMessage());}
 	}
+	
+	/**
+	 * stop the logging process and set isLogging to false
+	 */
 	
 	private void stopLogging() {
 		try

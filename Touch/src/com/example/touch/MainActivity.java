@@ -1,21 +1,13 @@
 package com.example.touch;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 import android.app.Activity;
-import android.app.ActionBar.LayoutParams;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -24,24 +16,14 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.View.OnTouchListener;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity implements OnClickListener
+public class MainActivity extends Activity
 {
 	public UUID mUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); 
 
@@ -59,63 +41,36 @@ public class MainActivity extends Activity implements OnClickListener
 	// device
 	private int state = STATE_NONE;
 
+	private float minPressure = 0;
+	private float maxPressure = 0;
 	public static float pressure = 0; //THE PRESSURE
-
-	//----screen stuff----
-	private ListView lv;
 
 	//ui interaction stuff
 	public static final int MESSAGE_READ = 1;
 
-	private DisplayMetrics metrics = new DisplayMetrics();
-	private int screenWidth;
-	private int screenHeight;
-
 	//----bluetooth stuff----
 	private BluetoothDevice device;
-	private InputStream is;
-	private OutputStream os;
 	private BluetoothAdapter BA;
 	private ConnectThread connectThread;
 	private ConnectedThread connectedThread;
 	private AcceptThread acceptThread;
-
-	//----logging stuff----
-	private File file;
-	private String fileName;
-	private boolean isLogging = false;
-	private Button btnTrack;
-	private BufferedWriter writer;
-	private TextView tvOhm;
-
 	private Timer timer;
 	TimerTask task = null;
-
-	//10 x and y coordinates, for up to 10 fingers
-	private	int tx[] = {0,0,0,0,0,0,0,0,0,0}, ty[] = {0,0,0,0,0,0,0,0,0,0};
-	//tc is the count of fingers used
-	private int tc = 0;
-	//tp is the physical pressure applied
-	private float tp = 0;
-
-	private int pX;
-	private int pY;
-
 	private Parser mParser;
 
+	
+	/**
+	 * set layout content activity_main.xml for drawing on custom view DrawView.java
+	 * check bluetooth support and make sure it is enabled
+	 */
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
-	{
-		
-		//----draw view stuff
-		
+	{	
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		
 		setContentView(R.layout.activity_main);
-		
-		//----bluetooth stuff
 
 		BA = BluetoothAdapter.getDefaultAdapter();
 		if (BA == null)
@@ -128,16 +83,27 @@ public class MainActivity extends Activity implements OnClickListener
 		else
 			Toast.makeText(getApplicationContext(),"Please make sure Bluetooth is turned on and the Device is paired",Toast.LENGTH_LONG).show();
 	}
-
-	public static float calculatePressure()
+	
+	/**
+	 * method for calculating and receiving pressure over bluetooth
+	 * DrawView access this methode
+	 * @return result: normalized pressure from bluetooth smartmeter in kOhm
+	 */
+	private float calculatePressure(float p)
 	{
-		float result = 0;
-
-		result = pressure;
-		// TODO Auto-generated method stub
-		return result;
+		minPressure = Math.min(minPressure, p);
+		maxPressure = Math.max(maxPressure, p);
+		Log.v("minmax",String.valueOf(minPressure)+":"+String.valueOf(maxPressure));
+		if (maxPressure != minPressure)
+			return Math.max(Math.min(((p-minPressure)/(maxPressure-minPressure)),1),0);
+		else
+			return 0.0f;
 	}
-
+	
+	//--------------------------------------------//
+	//----bluetooth related code starting here----//
+	//--------------------------------------------//
+	
 	private void connect() {
 
 		// Cancel any thread attempting to make a connection
@@ -163,18 +129,6 @@ public class MainActivity extends Activity implements OnClickListener
 			setState(STATE_CONNECTING);
 		}
 	}
-
-	/*
-	public void onClick(View v)
-	{
-
-		switch(v.getId())
-	    {
-	    	case R.id.btnTrack:
-	    		Log.v("button","clicked");
-	    	break;
-	    }
-	}*/
 
 	private void connected(BluetoothSocket socket,
 			BluetoothDevice device) {
@@ -202,6 +156,61 @@ public class MainActivity extends Activity implements OnClickListener
 		connectedThread.start();
 
 		setState(STATE_CONNECTED);
+	}
+	
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		// Only if the state is STATE_NONE, do we know that we haven't
+		// started already
+		if (state == STATE_NONE) {
+			// Start the Bluetooth chat services
+			start();
+		}
+	}
+
+	private void start() 
+	{
+		// Cancel any thread attempting to make a connection
+		if (connectThread != null) {
+			connectThread.cancel();
+			connectThread = null;
+		}
+
+		// Cancel any thread currently running a connection
+		if (connectedThread != null) {
+			connectedThread.cancel();
+			connectedThread = null;
+		}
+
+		// Start the thread to listen on a BluetoothServerSocket
+		//        if (acceptThread == null) {
+		//            acceptThread = new AcceptThread();
+		//            acceptThread.start();
+		//        }
+
+		setState(STATE_LISTEN);
+
+		//        try {
+		//			Thread.sleep(5000);
+		//		} catch (InterruptedException e) {
+		//			Log.e("Interrupted", "Interrupted");
+		//		}
+		//        
+		connect();
+
+		if (timer == null) {
+			timer = new Timer();
+		}
+
+		task = new CommandTask(mHandler);
+		timer.scheduleAtFixedRate(task, 0, 10);
+	}
+
+	private void setState(int newState)
+	{
+		state = newState;
 	}
 
 	private BluetoothDevice getFromAdapter()
@@ -443,7 +452,6 @@ public class MainActivity extends Activity implements OnClickListener
 
 		Handler mHandler;
 
-
 		public CommandTask(Handler mHandler) {
 			this.mHandler = mHandler;
 		}
@@ -535,11 +543,11 @@ public class MainActivity extends Activity implements OnClickListener
             sign = "-";
             unit = "mA";
             break;
-
+		*/
         case 5:
             sign = "";
             unit = "Ohm";
-            break;*/
+            break;
 		case 6:
 			sign = "";
 			unit = "kOhm";
@@ -555,17 +563,17 @@ public class MainActivity extends Activity implements OnClickListener
 		int combineData = HighReal + lowReal;
 		String all = sign + combineData + "." + getDecade(less) + " " + unit;
 
-		if (units == 6) //kOhm
-		{
-			//TODO: update textview here, not in the listener event
-			pressure = Float.valueOf(combineData + "." + getDecade(less));
-
-			Log.i("Result", all);
-
-		} else
-		{
-
-		}
+		if (units == 5)//Ohm
+    	{
+    		pressure = 1 - calculatePressure(1/1000 * Float.valueOf(combineData + "." + getDecade(less)));
+    	}
+        if (units == 6) //kOhm
+        {
+        	pressure = 1 - calculatePressure(Float.valueOf(combineData + "." + getDecade(less)));
+            	
+        	//Log.i("Result", all);
+            	
+        }
 
 	}
 
@@ -580,7 +588,10 @@ public class MainActivity extends Activity implements OnClickListener
 		}
 		return back;
 	}
-
+	
+	//-----------------------------------------------------------//
+	//----testing stuff code under this comment not relevant----//
+	//-----------------------------------------------------------//
 	public void toggleBluetooth()
 	{
 		//just a test 
@@ -685,112 +696,5 @@ public class MainActivity extends Activity implements OnClickListener
 			break;
 		}
 		return super.onOptionsItemSelected(item);
-	}
-
-	@Override
-	protected void onResume() {
-		super.onResume();
-
-		// Only if the state is STATE_NONE, do we know that we haven't
-		// started already
-		if (state == STATE_NONE) {
-			// Start the Bluetooth chat services
-			start();
-		}
-	}
-
-	private void start() 
-	{
-		// Cancel any thread attempting to make a connection
-		if (connectThread != null) {
-			connectThread.cancel();
-			connectThread = null;
-		}
-
-		// Cancel any thread currently running a connection
-		if (connectedThread != null) {
-			connectedThread.cancel();
-			connectedThread = null;
-		}
-
-		// Start the thread to listen on a BluetoothServerSocket
-		//        if (acceptThread == null) {
-		//            acceptThread = new AcceptThread();
-		//            acceptThread.start();
-		//        }
-
-		setState(STATE_LISTEN);
-
-		//        try {
-		//			Thread.sleep(5000);
-		//		} catch (InterruptedException e) {
-		//			Log.e("Interrupted", "Interrupted");
-		//		}
-		//        
-		connect();
-
-		if (timer == null) {
-			timer = new Timer();
-		}
-
-		task = new CommandTask(mHandler);
-		timer.scheduleAtFixedRate(task, 0, 10);
-	}
-
-	private void setState(int newState)
-	{
-		state = newState;
-	}
-	
-	@Override
-	public void onClick(View v)
-	{
-		switch (v.getId())
-		{
-			case (1):
-
-
-				if (!isLogging) //ENABLE LOGGING:
-				{
-
-					try
-					{
-						DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-						Calendar cal = Calendar.getInstance();
-
-						file = new File(this.getExternalFilesDir(null), "log"+cal.getTime().toString()+".txt");
-						if (!file.exists())
-							file.createNewFile();
-						Log.v("file", file.getAbsolutePath().toString());
-					} catch (IOException e) {Log.v("Error",e.getMessage());}
-
-					try
-					{
-						writer = new BufferedWriter(new FileWriter(file, true));
-						isLogging = true;
-
-					} catch (IOException e) {Log.v("Error",e.getMessage());}
-				} else //DISABLE LOGGING:
-				{
-
-
-					try
-					{
-						Toast.makeText(getApplicationContext(),"Saved File as " + file.getAbsolutePath().toString(),Toast.LENGTH_LONG).show();
-						writer.close();
-						writer = null;
-
-					} catch (IOException e) {Log.v("Error",e.getMessage());}
-					isLogging = false;
-				}
-
-				if(!isLogging)
-					btnTrack.setText("Start Logging");
-				else
-					btnTrack.setText("Stop Logging");
-
-			break;
-
-		}
 	}
 }
