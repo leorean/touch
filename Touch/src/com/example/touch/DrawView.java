@@ -94,7 +94,7 @@ public class DrawView extends View{
 		super.onDraw(canvas);
 
 		// display pressure near touch
-		canvas.drawText(String.format("%.4f", MainActivity.pressure) + " kOhm" , tx[0]-200, ty[0]-100, textPaint);
+		canvas.drawText(String.format("%.4f", MainActivity.pressure) + " kOhm, " + String.format("%.2f", MainActivity.newton) + " N" , tx[0]-200, ty[0]-100, textPaint);
 
 		// display x and y position at top-left corner
 		// comment this line for not showing the position
@@ -138,7 +138,7 @@ public class DrawView extends View{
 			touch_move(tx[0], ty[0]);
 			if(writer != null) {
 				try {
-					writer.append("x: " + String.valueOf(tx[0]) + ";" + " y: " + String.valueOf(ty[0]) + "; " + String.format("%.4f", MainActivity.pressure) + " kOhm");
+					writer.append("x: " + String.valueOf(tx[0]) + ";" + " y: " + String.valueOf(ty[0]) + "; " + String.format("%.4f", MainActivity.pressure) + " kOhm; " + String.format("%.2f", MainActivity.newton) + " N");
 					writer.newLine();
 				} catch (IOException e) {
 					Log.v("Error", e.getMessage());

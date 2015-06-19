@@ -44,6 +44,7 @@ public class MainActivity extends Activity
 	private float minPressure = 0;
 	private float maxPressure = 0;
 	public static float pressure = 0; //THE PRESSURE
+	public static float newton = 0; // NEWTON
 
 	//ui interaction stuff
 	public static final int MESSAGE_READ = 1;
@@ -89,7 +90,7 @@ public class MainActivity extends Activity
 	 * DrawView access this methode
 	 * @return result: normalized pressure from bluetooth smartmeter in kOhm
 	 */
-	private float calculatePressure(float p)
+	/* private float calculatePressure(float p)
 	{
 		minPressure = Math.min(minPressure, p);
 		maxPressure = Math.max(maxPressure, p);
@@ -98,7 +99,7 @@ public class MainActivity extends Activity
 			return Math.max(Math.min(((p-minPressure)/(maxPressure-minPressure)),1),0);
 		else
 			return 0.0f;
-	}
+	} */
 	
 	//--------------------------------------------//
 	//----bluetooth related code starting here----//
@@ -565,11 +566,18 @@ public class MainActivity extends Activity
 
 		if (units == 5)//Ohm
     	{
-    		pressure = 1 - calculatePressure(1/1000 * Float.valueOf(combineData + "." + getDecade(less)));
+    		// pressure = 1 - calculatePressure(1/1000 * Float.valueOf(combineData + "." + getDecade(less)));
+			pressure = Float.valueOf(combineData + "." + getDecade(less));
+			// newton = (float) (((pressure/0.35)-19) * (-1) + 1.5);
+			newton = (float) (19 - ((pressure - 1.5)/0.35));
+			if (newton < 0) newton = 0;
     	}
         if (units == 6) //kOhm
         {
-        	pressure = 1 - calculatePressure(Float.valueOf(combineData + "." + getDecade(less)));
+        	// pressure = 1 - calculatePressure(Float.valueOf(combineData + "." + getDecade(less)));
+        	pressure = Float.valueOf(combineData + "." + getDecade(less));
+        	newton = (float) (19 - ((pressure - 1.5)/0.35));
+        	if (newton < 0) newton = 0;
             	
         	//Log.i("Result", all);
             	
